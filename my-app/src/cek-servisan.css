@@ -1,0 +1,108 @@
+/* Base */
+body {
+  background-image: url(23629.jpg);
+  background-size: cover;
+}
+
+/* Wrapper */
+.cek-wrapper {
+min-height: 100vh;
+display: flex;
+justify-content: center;
+align-items: flex-start;
+padding: 40px 16px;
+}
+
+
+/* Card */
+.cek-card {
+width: 100%;
+max-width: 420px;
+background: #ffffff;
+border-radius: 12px;
+padding: 20px;
+box-shadow: 0 10px 30px rgba(195, 14, 14, 0.08);
+}
+
+
+.cek-title {
+text-align: center;
+font-size: 18px;
+font-weight: 700;
+margin-bottom: 20px;
+}
+
+
+/* Rows */
+.cek-row {
+display: flex;
+justify-content: space-between;
+align-items: center;
+padding: 10px 0;
+border-bottom: 1px dashed #e5e7eb;
+font-size: 14px;
+}
+
+
+.cek-row span {
+color: #64748b;
+}
+
+
+/* Status badge */
+.badge {
+padding: 4px 12px;
+border-radius: 999px;
+font-size: 12px;
+font-weight: 600;
+color: #fff;
+}
+
+
+.badge-masuk { background: #64748b; }
+.badge-proses { background: #0ea5e9; }
+.badge-selesai { background: #22c55e; }
+.badge-diambil { background: #6366f1; }
+
+
+/* History */
+.cek-history {
+margin-top: 16px;
+}
+
+
+.cek-history h4 {
+font-size: 14px;
+margin-bottom: 8px;
+}
+
+
+.cek-history ul {
+font-size: 13px;
+padding-left: 18px;
+}
+
+
+/* Header polish */
+.header {
+background: #ffffff;
+border-bottom: 1px solid #e5e7eb;
+}
+
+
+.header h1 {
+font-size: 18px;
+font-weight: 700;
+}
+
+/* QR Code Image */
+.qr-img {
+  max-width: 200px;
+  height: auto;
+  margin-top: 20px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px;
+  background: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}

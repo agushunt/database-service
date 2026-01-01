@@ -1,0 +1,292 @@
+import React, { useEffect, useState } from "react";
+import { BrowserRouter as Router, Routes, Route, Link, useParams, useNavigate } from "react-router-dom";
+import QRCode from "qrcode";
+import "./index.css";
+import "./cek-servisan.css";
+
+export default function App() {
+  return (
+    <Router>
+      <div className="container">
+        <header className="header">
+          <h1 className="title">Aplikasi Toko Servis</h1>
+          <div style={{display:'flex',alignItems:'center',gap:10}}>
+            <form onSubmit={(e)=>{e.preventDefault(); const v=e.currentTarget.querySelector('input')?.value; if(v) window.location.href=`/view/${encodeURIComponent(v)}`;}}>
+              <input
+                className="input"
+                placeholder="Cek service (No Service)"
+                style={{width:200}}
+              />
+            </form>
+            <nav className="nav">
+              <Link to="/">Admin</Link>
+              <Link to="/cek">Cek Service</Link>
+            </nav>
+          </div>
+        </header>
+
+        <main className="main-card">
+          <Routes>
+            <Route path="/" element={<AdminGuard><AdminView /></AdminGuard>} />
+            <Route path="/login" element={<LoginView />} />
+            <Route path="/cek" element={<CheckServiceForm />} />
+            <Route path="/view/:id" element={<PublicView />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </main>
+      </div>
+    </Router>
+  );
+}
+
+// ================= AUTH =================
+const AUTH_KEY = "service_shop_admin_auth_v1";
+const ADMIN_USER = "admin";
+const ADMIN_PASS = "admin123";
+
+function isLoggedIn() {
+  return localStorage.getItem(AUTH_KEY) === "1";
+}
+
+function login(username, password) {
+  if (username === ADMIN_USER && password === ADMIN_PASS) {
+    localStorage.setItem(AUTH_KEY, "1");
+    return true;
+  }
+  return false;
+}
+
+// ================= STORAGE =================
+const STORAGE_KEY = "service_shop_records_v1";
+
+function loadRecords() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecords(records) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+}
+
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+// ================= GUARD =================
+function AdminGuard({ children }) {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoggedIn()) navigate("/login");
+  }, [navigate]);
+
+  if (!isLoggedIn()) return null;
+  return children;
+}
+
+// ================= LOGIN =================
+function LoginView() {
+  const navigate = useNavigate();
+  const [user, setUser] = useState("");
+  const [pass, setPass] = useState("");
+  const [error, setError] = useState("");
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (login(user, pass)) navigate("/");
+    else setError("Username atau password salah");
+  }
+
+  return (
+    <div className="public-card">
+      <h2>Login Admin</h2>
+      <form onSubmit={handleSubmit}>
+        <input className="input" placeholder="Username" value={user} onChange={e => setUser(e.target.value)} />
+        <input className="input" type="password" placeholder="Password" value={pass} onChange={e => setPass(e.target.value)} />
+        {error && <div className="error">{error}</div>}
+        <button className="btn btn-primary">Login</button>
+      </form>
+      <p className="muted">Demo: admin / admin123</p>
+    </div>
+  );
+}
+
+// ================= ADMIN =================
+function AdminView() {
+  const [records, setRecords] = useState(loadRecords);
+  const [form, setForm] = useState({ customerName: "", device: "", problem: "", status: "Masuk" });
+  const [qr, setQr] = useState(null);
+  const [filter, setFilter] = useState("ALL");
+
+  useEffect(() => saveRecords(records), [records]);
+
+  function submit(e) {
+    e.preventDefault();
+    if (!form.customerName || !form.device) return alert("Data belum lengkap");
+
+    const rec = { id: generateId(), ...form, history: [{ status: form.status, at: Date.now() }], updatedAt: Date.now() };
+    setRecords([rec, ...records]);
+    setForm({ customerName: "", device: "", problem: "", status: "Masuk" });
+  }
+
+  async function makeQr(id) {
+    const url = window.location.origin + "/view/" + id;
+    setQr(await QRCode.toDataURL(url));
+  }
+
+  function exportPdf(r) {
+    const w = window.open("", "_blank");
+    w.document.write(`
+      <h2>Bukti Service</h2>
+      <p><b>Nama:</b> ${r.customerName}</p>
+      <p><b>Device:</b> ${r.device}</p>
+      <p><b>Keluhan:</b> ${r.problem}</p>
+      <p><b>Status:</b> ${r.status}</p>
+      <p><b>No Service:</b> ${r.id}</p>
+    `);
+    w.print();
+  }
+
+  const filtered = filter === "ALL" ? records : records.filter(r => r.status === filter);
+
+  return (
+    <div>
+      <div style={{marginBottom:12,display:'flex',gap:6,flexWrap:'wrap'}}>
+        <button className="btn" onClick={()=>setFilter('ALL')}>Semua</button>
+        <button className="btn" onClick={()=>setFilter('Masuk')}>Masuk</button>
+        <button className="btn" onClick={()=>setFilter('Proses')}>Proses</button>
+        <button className="btn" onClick={()=>setFilter('Selesai')}>Selesai</button>
+        <button className="btn" onClick={()=>setFilter('Diambil')}>Diambil</button>
+      </div>
+
+      <div className="grid">
+        <form onSubmit={submit}>
+          <input className="input" placeholder="Nama" value={form.customerName} onChange={e => setForm({ ...form, customerName: e.target.value })} />
+          <input className="input" placeholder="Device" value={form.device} onChange={e => setForm({ ...form, device: e.target.value })} />
+          <textarea className="textarea" placeholder="Keluhan" value={form.problem} onChange={e => setForm({ ...form, problem: e.target.value })} />
+          <button className="btn btn-primary">Tambah</button>
+        </form>
+
+        <div>
+          {filtered.map(r => (
+            <div key={r.id} className="list-item">
+              <div>
+                <b>{r.customerName}</b> - {r.device}
+                <div className="muted">ID: {r.id}</div>
+                <select
+                  className="select"
+                  value={r.status}
+                  onChange={(e) => {
+                    const newStatus = e.target.value;
+                    setRecords(records.map(x => x.id === r.id ? {
+                      ...x,
+                      status: newStatus,
+                      history: [...(x.history || []), { status: newStatus, at: Date.now() }],
+                      updatedAt: Date.now()
+                    } : x));
+                  }}
+                >
+                  <option value="Masuk">Masuk</option>
+                  <option value="Proses">Sedang Diproses</option>
+                  <option value="Selesai">Selesai</option>
+                  <option value="Diambil">Sudah Diambil</option>
+                </select>
+              </div>
+              <div style={{display:'flex',gap:6}}>
+                <button className="btn" onClick={() => makeQr(r.id)}>QR</button>
+                <button className="btn" onClick={() => exportPdf(r)}>PDF</button>
+              </div>
+            </div>
+          ))}
+          {qr && <img src={qr} className="qr-img" alt="qr" />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ================= PUBLIC =================
+function CheckServiceForm() {
+  const navigate = useNavigate();
+  const [serviceId, setServiceId] = useState("");
+  const [error, setError] = useState("");
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    if (!serviceId.trim()) {
+      setError("Nomor service wajib diisi");
+      return;
+    }
+
+    const records = loadRecords();
+    const found = records.find((r) => r.id === serviceId.trim());
+
+    if (!found) {
+      setError("Nomor service tidak ditemukan");
+      return;
+    }
+
+    navigate(`/view/${encodeURIComponent(serviceId.trim())}`);
+  }
+
+  return (
+    <div className="public-card">
+      <h2 style={{ fontSize: 20, fontWeight: 700 }}>Cek Status Service</h2>
+      <p className="muted small">Masukkan nomor service yang diberikan oleh admin</p>
+
+      <form onSubmit={handleSubmit} style={{ marginTop: 16, textAlign: "left" }}>
+        <div className="form-field">
+          <label>Nomor Service</label>
+          <input
+            className="input"
+            placeholder="Contoh: lkg9x2abc"
+            value={serviceId}
+            onChange={(e) => setServiceId(e.target.value)}
+          />
+        </div>
+
+        {error && <div className="muted small" style={{ color: "red" }}>{error}</div>}
+
+        <button className="btn btn-primary" style={{ marginTop: 8 }}>
+          Cek Service
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function PublicView() {
+  const { id } = useParams();
+  const rec = loadRecords().find(r => r.id === id);
+
+  if (!rec) return <div className="public-card">Data tidak ditemukan</div>;
+
+  return (
+    <div className="public-card">
+      <h2>Status Service</h2>
+      <p><b>Nama:</b> {rec.customerName}</p>
+      <p><b>Device:</b> {rec.device}</p>
+      <p><b>Keluhan:</b> {rec.problem}</p>
+      <p><b>Status:</b> <span className={`status-badge status-${rec.status.toLowerCase()}`}>{rec.status}</span></p>
+
+      {rec.history && rec.history.length > 1 && (
+        <div style={{marginTop:12}}>
+          <b>Riwayat Status:</b>
+          <ul className="history">
+            {rec.history.map((h,i)=>(
+              <li key={i}>{new Date(h.at).toLocaleString()} - {h.status}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NotFound() {
+  return <div className="public-card">Halaman tidak ditemukan</div>;
+}
